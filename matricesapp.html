@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Reducción de Matrices - Gauss-Jordan</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2980b9;
+            --background-color: #f5f5f5;
+            --text-color: #333;
+            --light-gray: #ecf0f1;
+            --white: #ffffff;
+            --error-color: #e74c3c;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 10px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            -webkit-text-size-adjust: 100%;
+            touch-action: manipulation;
+        }
+        
+        h1, h2, h3 {
+            color: var(--text-color);
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0 5px;
+        }
+        
+        .matrix-container {
+            background-color: var(--white);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex: 1 1 100px;
+        }
+        
+        label {
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 60px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        button {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            padding: 10px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 14px;
+            flex: 1 1 120px;
+            min-height: 40px;
+        }
+        
+        button:hover, button:focus {
+            background-color: var(--secondary-color);
+            outline: none;
+        }
+        
+        table {
+            border-collapse: collapse;
+            margin: 10px auto;
+            width: 100%;
+            font-size: 14px;
+        }
+        
+        th, td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+            min-width: 40px;
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            max-width: 60px;
+            -webkit-appearance: none;
+            -moz-appearance: textfield;
+        }
+        
+        .step-by-step {
+            margin-top: 20px;
+        }
+        
+        .step {
+            margin-bottom: 15px;
+            padding: 12px;
+            background-color: var(--light-gray);
+            border-radius: 5px;
+            border-left: 4px solid var(--primary-color);
+            font-size: 14px;
+        }
+        
+        .error {
+            color: var(--error-color);
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .scrollable {
+            max-height: 300px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Estilos específicos para pantallas más grandes */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 90%;
+            }
+            
+            button {
+                flex: 0 1 auto;
+            }
+            
+            .controls {
+                gap: 10px;
+            }
+            
+            table {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Reducción de Matrices por Gauss-Jordan</h1>
+        
+        <div class="matrix-container">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="rows">Filas:</label>
+                    <input type="number" id="rows" min="1" max="10" value="3">
+                </div>
+                <div class="control-group">
+                    <label for="cols">Columnas:</label>
+                    <input type="number" id="cols" min="1" max="10" value="3">
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="generate">Generar Matriz</button>
+                <button id="random">Valores Aleatorios</button>
+                <button id="calculate">Reducir</button>
+                <button id="clear">Limpiar</button>
+            </div>
+            
+            <div class="scrollable">
+                <div id="matrix-input"></div>
+            </div>
+        </div>
+        
+        <div id="result-container" class="matrix-container" style="display: none;">
+            <h2>Matriz Reducida</h2>
+            <div class="scrollable">
+                <div id="matrix-result"></div>
+            </div>
+        </div>
+        
+        <div id="steps-container" class="matrix-container step-by-step" style="display: none;">
+            <h2>Pasos de la Reducción</h2>
+            <div class="scrollable">
+                <div id="steps"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let matrix = [];
+        let steps = [];
+        
+        // Generar la matriz de entrada
+        function generateMatrix() {
+            const rows = parseInt(document.getElementById('rows').value);
+            const cols = parseInt(document.getElementById('cols').value);
+            const container = document.getElementById('matrix-input');
+            
+            container.innerHTML = '';
+            
+            let table = document.createElement('table');
+            let tbody = document.createElement('tbody');
+            
+            // Generar filas y columnas
+            for (let i = 0; i < rows; i++) {
+                let tr = document.createElement('tr');
+                for (let j = 0; j < cols; j++) {
+                    let td = document.createElement('td');
+                    let input = document.createElement('input');
+                    input.type = 'number';
+                    input.id = `cell-${i}-${j}`;
+                    input.value = matrix[i] && matrix[i][j] ? matrix[i][j] : 0;
+                    input.inputMode = 'numeric';
+                    input.pattern = '[0-9]*';
+                    td.appendChild(input);
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+            
+            table.appendChild(tbody);
+            container.appendChild(table);
+        }
+        
+        // Generar valores aleatorios
+        function randomizeMatrix() {
+            const rows = parseInt(document.getElementById('rows').value);
+            const cols = parseInt(document.getElementById('cols').value);
+            
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const randomValue = Math.floor(Math.random() * 20) - 10; // Valores entre -10 y 10
+                    document.getElementById(`cell-${i}-${j}`).value = randomValue;
+                }
+            }
+        }
+        
+        // Leer la matriz de los inputs
+        function readMatrix() {
+            const rows = parseInt(document.getElementById('rows').value);
+            const cols = parseInt(document.getElementById('cols').value);
+            matrix = [];
+            
+            for (let i = 0; i < rows; i++) {
+                matrix[i] = [];
+                for (let j = 0; j < cols; j++) {
+                    const value = parseFloat(document.getElementById(`cell-${i}-${j}`).value);
+                    if (isNaN(value)) {
+                        alert(`Valor inválido en fila ${i+1}, columna ${j+1}`);
+                        return null;
+                    }
+                    matrix[i][j] = value;
+                }
+            }
+            
+            return matrix;
+        }
+        
+        // Implementación del método Gauss-Jordan
+        function gaussJordan() {
+            const matrix = readMatrix();
+            if (!matrix) return;
+            
+            steps = [];
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+            
+            // Hacer una copia profunda para trabajar
+            let reducedMatrix = JSON.parse(JSON.stringify(matrix));
+            steps.push({message: "Matriz original", matrix: JSON.parse(JSON.stringify(reducedMatrix))});
+            
+            let lead = 0;
+            
+            for (let r = 0; r < rows; r++) {
+                if (lead >= cols) break;
+                
+                let i = r;
+                while (reducedMatrix[i][lead] === 0) {
+                    i++;
+                    if (i === rows) {
+                        i = r;
+                        lead++;
+                        if (lead === cols) {
+                            steps.push({message: `Pivote en columna ${lead+1} no encontrado`, matrix: JSON.parse(JSON.stringify(reducedMatrix))});
+                            displayResult(reducedMatrix);
+                            return;
+                        }
+                    }
+                }
+                
+                // Intercambiar filas si es necesario
+                if (i !== r) {
+                    [reducedMatrix[i], reducedMatrix[r]] = [reducedMatrix[r], reducedMatrix[i]];
+                    steps.push({message: `Intercambiar fila ${i+1} con fila ${r+1}`, matrix: JSON.parse(JSON.stringify(reducedMatrix))});
+                }
+                
+                // Normalizar la fila del pivote
+                const pivotValue = reducedMatrix[r][lead];
+                if (pivotValue !== 1 && pivotValue !== 0) {
+                    for (let j = 0; j < cols; j++) {
+                        reducedMatrix[r][j] /= pivotValue;
+                    }
+                    steps.push({message: `Normalizar fila ${r+1} dividiendo por ${pivotValue.toFixed(2)}`, matrix: JSON.parse(JSON.stringify(reducedMatrix))});
+                }
+                
+                // Eliminación hacia adelante y atrás
+                for (let i = 0; i < rows; i++) {
+                    if (i !== r) {
+                        const factor = reducedMatrix[i][lead];
+                        for (let j = 0; j < cols; j++) {
+                            reducedMatrix[i][j] -= factor * reducedMatrix[r][j];
+                        }
+                        steps.push({message: `Eliminar columna ${lead+1} en fila ${i+1} usando fila ${r+1}`, matrix: JSON.parse(JSON.stringify(reducedMatrix))});
+                    }
+                }
+                
+                lead++;
+            }
+            
+            displayResult(reducedMatrix);
+        }
+        
+        // Mostrar el resultado
+        function displayResult(resultMatrix) {
+            const resultContainer = document.getElementById('result-container');
+            const stepsContainer = document.getElementById('steps-container');
+            const resultDiv = document.getElementById('matrix-result');
+            const stepsDiv = document.getElementById('steps');
+            
+            // Mostrar matriz reducida
+            resultDiv.innerHTML = '';
+            let table = document.createElement('table');
+            let tbody = document.createElement('tbody');
+            
+            for (let i = 0; i < resultMatrix.length; i++) {
+                let tr = document.createElement('tr');
+                for (let j = 0; j < resultMatrix[0].length; j++) {
+                    let td = document.createElement('td');
+                    td.textContent = resultMatrix[i][j].toFixed(2);
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+            
+            table.appendChild(tbody);
+            resultDiv.appendChild(table);
+            resultContainer.style.display = 'block';
+            
+            // Mostrar pasos (limitado a 5 pasos en móviles)
+            stepsDiv.innerHTML = '';
+            const stepsToShow = window.innerWidth < 768 ? steps.slice(0, 5) : steps;
+            
+            stepsToShow.forEach((step, index) => {
+                let stepDiv = document.createElement('div');
+                stepDiv.className = 'step';
+                
+                let stepTitle = document.createElement('h3');
+                stepTitle.textContent = `Paso ${index + 1}: ${step.message}`;
+                stepDiv.appendChild(stepTitle);
+                
+                let stepTable = document.createElement('table');
+                let stepTbody = document.createElement('tbody');
+                
+                for (let i = 0; i < step.matrix.length; i++) {
+                    let tr = document.createElement('tr');
+                    for (let j = 0; j < step.matrix[0].length; j++) {
+                        let td = document.createElement('td');
+                        td.textContent = step.matrix[i][j].toFixed(2);
+                        tr.appendChild(td);
+                    }
+                    stepTbody.appendChild(tr);
+                }
+                
+                stepTable.appendChild(stepTbody);
+                stepDiv.appendChild(stepTable);
+                stepsDiv.appendChild(stepDiv);
+            });
+            
+            if (window.innerWidth < 768 && steps.length > 5) {
+                let warning = document.createElement('p');
+                warning.textContent = `Mostrando 5 de ${steps.length} pasos. Usa un dispositivo más grande para ver todos.`;
+                warning.style.color = '#e67e22';
+                warning.style.textAlign = 'center';
+                stepsDiv.appendChild(warning);
+            }
+            
+            stepsContainer.style.display = 'block';
+            
+            // Desplazarse a los resultados
+            resultContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Limpiar todo
+        function clearAll() {
+            document.getElementById('matrix-input').innerHTML = '';
+            document.getElementById('result-container').style.display = 'none';
+            document.getElementById('steps-container').style.display = 'none';
+            matrix = [];
+            steps = [];
+        }
+        
+        // Event listeners con manejo táctil mejorado
+        document.getElementById('generate').addEventListener('click', generateMatrix);
+        document.getElementById('random').addEventListener('click', randomizeMatrix);
+        document.getElementById('calculate').addEventListener('click', gaussJordan);
+        document.getElementById('clear').addEventListener('click', clearAll);
+        
+        // Generar matriz inicial al cargar
+        window.addEventListener('DOMContentLoaded', generateMatrix);
+        
+        // Evitar zoom con doble toque
+        document.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
